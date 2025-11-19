@@ -1,145 +1,140 @@
-from io import BytesIO
-from webbrowser import Error
-
-from anvil import Chunk, Region, Block
+from anvil import Chunk, Region, Block, Biome
+from typing import Dict, List, Tuple, Union
 from pathlib import Path
-from typing import Union, List
+from io import BytesIO
+import pathlib
 import os
-import sys
 
-class BedrockPatternFinder:
+class MyChunk:
+    def __init__(self, chunk, dimension: str):
+        self.chunk = chunk
+        self.maxHeight = 318 if dimension == "overworld" else 256
+        self.minHeight = -64 if dimension == "overworld" else 0
 
-    def __init__(self, folder_path: Union[str, Path]):
+    def exists(self):
+        return self.chunk is not None
+
+    def blocks(self) -> Dict[str, int]:
+        """Return count of all blocks inside the chunk."""
+        data = {}
+        for x in range(16):
+            for y in range(self.minHeight, self.maxHeight):
+                for z in range(16):
+                    block_id = self.chunk.get_block(x, y, z).id
+                    data[block_id] = data.get(block_id, 0) + 1
+        return data
+
+    def look_for_blocks(self, block_ids: Union[str, List[str]]) -> Dict[str, List[Tuple[int, int, int]]]:
+        """Returns dict[block_id] = list of positions where found."""
+        if not self.exists():
+            return {}
+
+        if isinstance(block_ids, str):
+            block_ids = [block_ids]
+
+        result = {bid: [] for bid in block_ids}
+
+        for x in range(16):
+            for y in range(self.minHeight, self.maxHeight):
+                for z in range(16):
+                    block = self.chunk.get_block(x, y, z)
+                    if block.id in result:
+                        result[block.id].append((x, y, z))
+
+        return {k: v for k, v in result.items() if v}
+
+class ChunkManager:
+    def __init__(self, path: str):
         """
-        Finds bedrock patterns
-        :param folder_path:
-        takes path to folder with .mca files.
-        Could be a str or path like object
+        Path = path to Minecraft folder used by Bobby.
         """
-        self.CHUNK_INDEX_START = -3
-        self.CHUNK_INDEX_END = -1
+        self.path = Path(path)
+        self.chunks = {}
 
-        if not os.path.exists(folder_path):
-            raise ValueError(f"Path does not exist '{folder_path}'")
 
-        if not os.path.isdir(folder_path):
-            raise ValueError(f"Path is not to directory '{folder_path}'")
+    def from_corners_to_chunks(self, p1: tuple[int,int],p2: tuple[int,int]) -> list:
+        lenght_chunks = abs(p1[0]-p2[0]) // 16 + 2
+        width_chunks = abs(p1[1]-p2[1]) // 16 + 2
 
-        if not os.listdir(folder_path):
-            raise FileNotFoundError(f"Given directory is empty '{folder_path}'")
+        lenght_start = (min(p1[0],p2[0]) // 16) - 1
+        width_start = (min(p1[1], p2[1]) // 16) - 1
 
-        self.mca_files = self.__load_mca_files(folder_path)
-        self.chunks = self.__files_to_chunks(self.mca_files)
+        res = []
+        for x in range(lenght_start, lenght_start + lenght_chunks):
+            for y in range(width_start, width_start + width_chunks):
+                res.append((x,y))
 
-    @staticmethod
-    def __load_mca_files(path: Union[str, Path]):
-        """
-        :param path:
-        :return: list of .mca files
-        """
-        path = Path(path)
-        mca_files = {}
+        return res
 
-        for file_name in os.listdir(path):
-            if file_name.endswith(".mca"):
+
+    def load_by_list(self, chunks_list: List[Tuple[int, int]], dimension: str):
+        dim_path = Path(self.path, dimension)
+
+        # --- helpers ---
+        def chunk_to_region(chunk_x: int, chunk_z: int):
+            return chunk_x // 32, chunk_z // 32
+
+        def load_file(path: Union[pathlib.Path, str]) -> Union[bytes, None]:
+            path = Path(path)
+            if not path.parent.exists():
+                return None
+            if path.name in os.listdir(path.parent):
+                with open(path, "rb") as f:
+                    return f.read()
+            return None
+
+        def search_for_file(filename: str, start: pathlib.Path) -> Union[bytes, None]:
+            """Recursive file search inside dimension folder."""
+            for entry in os.scandir(start):
+                if entry.is_file() and entry.name == filename:
+                    return load_file(entry.path)
+                if entry.is_dir():
+                    result = search_for_file(filename, entry.path)
+                    if result is not None:
+                        return result
+            return None
+
+        # --- gather region files required ---
+        region_set = {chunk_to_region(x, z) for x, z in chunks_list}
+        region_file_data = {}
+
+        for rx, rz in region_set:
+            filename = f"r.{rx}.{rz}.mca"
+            file_bytes = search_for_file(filename, dim_path)
+            if file_bytes:
+                region_file_data[(rx, rz)] = BytesIO(file_bytes)
+
+        loaded = {}
+
+        for (rx, rz), file_obj in region_file_data.items():
+            region = Region.from_file(file_obj)
+
+            for cx, cz in chunks_list:
+                if chunk_to_region(cx, cz) != (rx, rz):
+                    continue
+
+                local_x = cx % 32
+                local_z = cz % 32
 
                 try:
-                    file_path = Path(path, file_name)
-                    with open(file_path, 'rb') as f:
-                        mca_files[file_name] = {}
-                        mca_files[file_name]["data"] = f.read()
+                    chunk = region.get_chunk(local_x, local_z)
+                except:
+                    continue
 
-                except Exception as e:
-                    raise ValueError(f"Unknown error while reading .mca files: '{e}' , path: '{file_name}'")
+                if chunk:
+                    loaded[(cx, cz)] = chunk
 
-        if not mca_files:
-            raise FileNotFoundError(f"directory '{path}' contains no .mca files")
+        self.chunks.update({
+            coords: MyChunk(chunk, dimension)
+            for coords, chunk in loaded.items()
+        })
 
-        return mca_files
-
-    def __files_to_chunks(self, files: dict[Union[str,Path]:dict[bytes]]):
-        for filename in files.keys():
-            try:
-                indexes = filename.split(".")[self.CHUNK_INDEX_START:self.CHUNK_INDEX_END]
-                indexes = [int(i)*32 for i in indexes]
-                # print(filename)
-
-                files[filename]["chunks"] = self.chunk_loader(files[filename]["data"], indexes[0], indexes[1])
-                # print(f"loaded {len(files[filename]['chunks'])} from {filename}")
-                self.cube_finder(files[filename]["chunks"])
-
-            except Exception as e:
-                raise ValueError(f"Unknown error while calculating chunk indexes: for '{filename}', '{e}'")
-        return files
-
-    @staticmethod
-    def chunk_loader(file: bytes, region_x: int, region_z: int):
-        print(f"Processing region: ({region_x}, {region_z})")
-
-        try:
-            file_obj = BytesIO(file)
-            region = Region.from_file(file_obj)
-            chunks = []
-
-            for local_x in range(32):
-                for local_z in range(32):
-                    try:
-                        location = region.chunk_location(chunk_x=local_x, chunk_z=local_z)
-
-                        if location != (0, 0):
-                            chunk = Chunk.from_region(region, chunk_x=local_x, chunk_z=local_z)
-
-                            chunks.append({
-                                'chunk': chunk,
-                                'global_x': region_x * 32 + local_x,
-                                'global_z': region_z * 32 + local_z,
-                                'local_x': local_x,
-                                'local_z': local_z,
-                                'region_x': region_x,
-                                'region_z': region_z
-                            })
-
-                    except Exception as e:
-                        print(f"Error loading chunk ({local_x}, {local_z}): {e}")
-                        continue
-
-            return chunks
-
-        except Exception as e:
-            print(f"Error creating region: {e}")
-            return []
-
-    def cube_finder(self, chunks):
-        def single_chunk_check(chunk):
-            for x in range(1,14):
-                for z in range(1,14):
-                    cords = self.from_cord_to_cube_3x3((x,z))
-                    for cord in cords:
-                        # print(str(chunk["chunk"].get_block(*cord).id))
-                        if chunk["chunk"].get_block(*cord).id != "bedrock":
-                            # print(chunk["chunk"].get_block(*cord))
-                            # print("fail")
-                            return
-                    print("found", chunk["global_x"], chunk["global_z"])
-
-        for chunk in chunks:
-            single_chunk_check(chunk)
-
-
-
-    def from_cord_to_cube_3x3(self, cord):
-        x, z = cord
-        cube_cords = []
-
-        for dy in [-1, 0, 1]:  # y: 126, 127, 128
-            for dx in [-1, 0, 1]:  # x: x-1, x, x+1
-                for dz in [-1, 0, 1]:  # z: z-1, z, z+1
-                    cube_cords.append((x + dx, 126 + dy, z + dz))
-
-        return cube_cords
 
 
 
 if __name__ == "__main__":
-    pass
+    cm = ChunkManager(r"C:\Users\DNS\PycharmProjects\BedrockPatternFinder\minecraft")
+    # cm.load_by_list([(-50,50), (0,0)], "overworld")
+    # print(cm.chunks[(0,0)].look_for_blocks("deepslate"))
+    print(len(cm.from_corners_to_chunks((0,0),(256,256))))
 
