@@ -4,7 +4,8 @@ from pathlib import Path
 from io import BytesIO
 import pathlib
 import os
-
+import numpy as np
+import anvil
 class MyChunk:
     def __init__(self, chunk, dimension: str):
         self.chunk = chunk
@@ -52,20 +53,21 @@ class ChunkManager:
         self.chunks = {}
 
 
-    def from_corners_to_chunks(self, p1: tuple[int,int],p2: tuple[int,int]) -> list:
-        lenght_chunks = abs(p1[0]-p2[0]) // 16 + 2
-        width_chunks = abs(p1[1]-p2[1]) // 16 + 2
+    def from_corners_to_chunks(self, p1: tuple[int, int], p2: tuple[int, int]) -> list:
+        length_chunks = abs(p1[0] - p2[0]) // 16 + 2
+        width_chunks = abs(p1[1] - p2[1]) // 16 + 2
 
-        lenght_start = (min(p1[0],p2[0]) // 16) - 1
+        length_start = (min(p1[0], p2[0]) // 16) - 1
         width_start = (min(p1[1], p2[1]) // 16) - 1
 
-        res = []
-        for x in range(lenght_start, lenght_start + lenght_chunks):
-            for y in range(width_start, width_start + width_chunks):
-                res.append((x,y))
+        x_indices, y_indices = np.meshgrid(
+            np.arange(length_start, length_start + length_chunks),
+            np.arange(width_start, width_start + width_chunks)
+        )
 
-        return res
+        result = list(zip(x_indices.flatten(), y_indices.flatten()))
 
+        return result
 
     def load_by_list(self, chunks_list: List[Tuple[int, int]], dimension: str):
         dim_path = Path(self.path, dimension)

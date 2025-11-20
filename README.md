@@ -1,2 +1,2 @@
-# bedrockPattermFinder
-Script to find  bedrock pattern by .mca files. Maybe by seed but no now/
+# McaAnalyzer
+Small script to analyze .mca files and finding selected blocks. This project is focused on peri making preparations so features like detecting possible cobble or obsidian generations are coming soon!
