@@ -18,6 +18,8 @@ class FastChunkAnalyzer:
     def __init__(self, sections):
         self.sections = sections
         self._build_lookup()
+        if not sections:
+            self.exist = False
 
     def _build_lookup(self):
         self.section_data = []

@@ -9,9 +9,13 @@ from pathlib import Path
 from ChunkAnalyzer import FastChunkAnalyzer
 
 class FastMca:
-    def __init__(self, region_path: Union[Path,str] ) -> None:
-        self.__data = np.fromfile(region_path, dtype=">i4")
-        self.__entries = self.__parse_location_entries(self.__data)
+    def __init__(self, region_path: Union[Path,str, BytesIO] ) -> None:
+        if region_path:
+            if type(region_path) == BytesIO:
+                self.__data = np.frombuffer(region_path, dtype=">i4")
+            else:
+                self.__data = np.fromfile(region_path, dtype=">i4")
+                self.__entries = self.__parse_location_entries(self.__data)
 
     @staticmethod
     def __parse_location_entries(data):
@@ -37,23 +41,29 @@ class FastMca:
         words_count = (nbt[0] + 3) // 4
         compressed_chunk = nbt[1:1+words_count].tobytes()[1:]
 
-        if compression_type == 1:
-            return nb.File.parse(BytesIO(gzip.decompress(compressed_chunk)))
-        elif compression_type == 2:
-            return  nb.File.parse(BytesIO(zlib.decompress(compressed_chunk)))
-        elif compression_type == 3:
-            return  nb.File.parse(BytesIO(compressed_chunk))
-        else:
-            raise ValueError("Unknown chunk compression type")
+        try:
+            if compression_type == 1:
+                return nb.File.parse(BytesIO(gzip.decompress(compressed_chunk)))
+            elif compression_type == 2:
+                return  nb.File.parse(BytesIO(zlib.decompress(compressed_chunk)))
+            elif compression_type == 3:
+                return  nb.File.parse(BytesIO(compressed_chunk))
+            else:
+                raise ValueError("Unknown chunk compression type")
+        except Exception as e:
+            return
 
     def get_chunk(self, cords: tuple[int,int]):
         raw_chunk = self.__get_chunk_raw(cords)
+        if not raw_chunk: return FastChunkAnalyzer([])
         sections = raw_chunk.get('sections')
         return  FastChunkAnalyzer(sections)
 
 
 if __name__ == "__main__":
-    fm = FastMca('minecraft/overworld/3/r.0.0.mca')
-    a = fm.get_chunk((1,1))
-    print(a.look_for_block('minecraft:bedrock'))
+    fm = FastMca('minecraft/the_end/1/r.0.0.mca')
+    for i in range(32):
+        for j in range(32):
+            a = fm.get_chunk((i,j))
+            if a.get_palette(): print(a.get_palette())
 

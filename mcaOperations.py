@@ -1,13 +1,13 @@
-from anvil import Chunk, Region, Block, Biome
 from typing import Dict, List, Tuple, Union
 from pathlib import Path
-from io import BytesIO
 import pathlib
 import os
 import numpy as np
-import anvil
+
+from FastMca import FastMca
+from ChunkAnalyzer import FastChunkAnalyzer
 class MyChunk:
-    def __init__(self, chunk, dimension: str):
+    def __init__(self, chunk:FastChunkAnalyzer, dimension: str):
         self.chunk = chunk
         self.maxHeight = 318 if dimension == "overworld" else 256
         self.minHeight = -64 if dimension == "overworld" else 0
@@ -85,11 +85,11 @@ class ChunkManager:
                     return f.read()
             return None
 
-        def search_for_file(filename: str, start: pathlib.Path) -> Union[bytes, None]:
+        def search_for_file(filename: str, start: Union[pathlib.Path, str]) -> Union[Path, None]:
             """Recursive file search inside dimension folder."""
             for entry in os.scandir(start):
                 if entry.is_file() and entry.name == filename:
-                    return load_file(entry.path)
+                    return Path(entry.path)
                 if entry.is_dir():
                     result = search_for_file(filename, entry.path)
                     if result is not None:
@@ -102,14 +102,13 @@ class ChunkManager:
 
         for rx, rz in region_set:
             filename = f"r.{rx}.{rz}.mca"
-            file_bytes = search_for_file(filename, dim_path)
-            if file_bytes:
-                region_file_data[(rx, rz)] = BytesIO(file_bytes)
+            full_path = search_for_file(filename, dim_path)
+            region_file_data[(rx, rz)] = full_path
 
         loaded = {}
 
         for (rx, rz), file_obj in region_file_data.items():
-            region = Region.from_file(file_obj)
+            region = FastMca(file_obj)
 
             for cx, cz in chunks_list:
                 if chunk_to_region(cx, cz) != (rx, rz):
@@ -119,7 +118,7 @@ class ChunkManager:
                 local_z = cz % 32
 
                 try:
-                    chunk = region.get_chunk(local_x, local_z)
+                    chunk = region.get_chunk((local_x, local_z))
                 except:
                     continue
 
@@ -132,11 +131,16 @@ class ChunkManager:
         })
 
 
-
-
 if __name__ == "__main__":
     cm = ChunkManager(r"C:\Users\DNS\PycharmProjects\BedrockPatternFinder\minecraft")
-    # cm.load_by_list([(-50,50), (0,0)], "overworld")
-    # print(cm.chunks[(0,0)].look_for_blocks("deepslate"))
-    print(len(cm.from_corners_to_chunks((0,0),(256,256))))
+    cm.load_by_list([(0,0)], "the_nether")
+    count = 0
+    # print(cm.chunks)
+    # for i in cm.chunks.keys():
+    #     print(cm.chunks[i].chunk.get_palette())
+    #     count+= len(cm.chunks[i].chunk.find_blocks_in_area("minecraft:netherack"))
+    print(cm.chunks[(0,0)].chunk.get_palette())
+
+
+    # print(len(cm.from_corners_to_chunks((0,0),(256,256))))
 
