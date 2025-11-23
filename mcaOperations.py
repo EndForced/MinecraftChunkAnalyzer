@@ -52,6 +52,42 @@ class ChunkManager:
         self.path = Path(path)
         self.chunks = {}
 
+    @staticmethod
+    def find_mca_files(directory_path):
+        """
+        Ищет все файлы .mca в указанной директории и возвращает их количество и общий размер
+
+        Args:
+            directory_path (str): Путь к директории для поиска
+
+        Returns:
+            dict: Словарь с количеством файлов и общим размером в байтах
+        """
+        mca_files = []
+        total_size = 0
+
+        try:
+            directory = Path(directory_path)
+            if not directory.exists():
+                return {"error": f"Директория {directory_path} не существует"}
+            if not directory.is_dir():
+                return {"error": f"{directory_path} не является директорией"}
+            for file_path in directory.rglob("*.mca"):
+                if file_path.is_file():
+                    mca_files.append(file_path)
+                    total_size += file_path.stat().st_size
+            return {
+                "count": len(mca_files),
+                "total_size_bytes": total_size,
+                "total_size_mb": round(total_size / (1024 * 1024), 2),
+                "files": [str(f) for f in mca_files]  # список путей для отладки
+            }
+
+        except PermissionError:
+            return {"error": "Нет прав доступа к директории"}
+        except Exception as e:
+            return {"error": f"Произошла ошибка: {str(e)}"}
+
 
     def from_corners_to_chunks(self, p1: tuple[int, int], p2: tuple[int, int]) -> list:
         length_chunks = abs(p1[0] - p2[0]) // 16 + 2
