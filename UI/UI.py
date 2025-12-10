@@ -1,6 +1,6 @@
 import os
 from tkinter import filedialog
-from typing import Dict
+from typing import Dict, Literal
 from pathlib import Path
 from ttkbootstrap.constants import PRIMARY
 from mcaOperations import ChunkManager
@@ -68,6 +68,44 @@ class PathHandler:
         return worlds
 
     @staticmethod
+    def dimension_to_full_path(path_to_save: Union[Path, str], dimension:Literal["Nether", "Overworld", "End"]):
+        def check_versions_structure(path: Path) -> bool:
+            versions_dir = path / "versions"
+
+            if not versions_dir.exists():
+                return False
+
+            for version in versions_dir.iterdir():
+                if version.is_dir():
+                    jar_file = version / f"{version.name}.jar"
+                    json_file = version / f"{version.name}.json"
+
+                    if jar_file.exists() and json_file.exists():
+                        return True
+
+            return False
+        map_dict = {}
+
+        parts_to_minecraft_folder = list(Path(path_to_save).parts)
+        while parts_to_minecraft_folder:
+            if check_versions_structure(Path(*parts_to_minecraft_folder)):
+                break
+            else: parts_to_minecraft_folder.pop(-1)
+
+        relative_path = Path(path_to_save).parts[len(parts_to_minecraft_folder):]
+        if relative_path[0] == ".bobby":
+            map_dict = {"Nether":"the_nether", "Overworld":"overworld", "End":"the_end"}
+        elif relative_path[0] == "saves":
+            map_dict = {"Nether":"DIM-1", "Overworld":"region", "End":"DIM1"}
+
+        final_dir = Path(path_to_save, map_dict[dimension])
+        if final_dir.parts[-1] in os.listdir(path_to_save):
+            return final_dir
+
+
+
+
+    @staticmethod
     def show_info_popup(text, title="Warning"):
         popup = ttk.Toplevel(title=title)
         popup.geometry("400x150")
@@ -78,6 +116,7 @@ class PathHandler:
 
 class MinecraftChunkAnalyzer:
     def __init__(self):
+        self.full_path_to_dim: str = Optional[None]
         self.root = ttk.Window(
             title="Mca Analyzer",
             themename="darkly",
@@ -168,12 +207,28 @@ class MinecraftChunkAnalyzer:
 
         if len(data_info["files"]) > 0: #если есть .mca файлы
             if len(self.world_selection_panel.frames) < 2: #и не добавили панель выбора измерения
-                self.world_selection_panel.add_copy(self.dimension_panel) #добавляем панель измерения
+                self.world_selection_panel.add_copy(self.dimension_panel, box_command =
+                    self.dimension_selection_processing) #добавляем панель измерения
             self.console.log(
                 f"Successfully loaded {len(data_info['files'])} region files with total size of {data_info['total_size_mb']} mb")
         else:
             self.console.log(
-                f"Unable to find any .mca files which is strange. Trying to find in {self.full_world_path}")
+                f"Unable to find any .mca files which is strange. Trying to find in {self.full_world_path}", "error")
+
+    def dimension_selection_processing(self, event=None):
+        self.full_path_to_dim = self.path_handler.dimension_to_full_path(self.full_world_path,
+                                               self.world_selection_panel.frames[-1][1].get())
+
+        data_info = self.chunk_manager.find_mca_files(self.full_path_to_dim)
+        if not self.full_path_to_dim or not data_info["files"]:
+            self.console.log(f"Error no region files from {self.world_selection_panel.frames[-1][1].get()} dimension", "error")
+            return 
+        self.chunk_manager = ChunkManager(str(Path(*self.full_path_to_dim.parts[:-1])))
+        if len(data_info["files"]) > 0:
+            self.console.log(
+                f"Successfully loaded {len(data_info['files'])} region files with total size of"
+                f" {data_info['total_size_mb']} mb from dimension:"
+                f" {self.world_selection_panel.frames[-1][-1].get()} ")
 
     def combobox_selection_processing(self, event):
         self.console.clear()
@@ -197,10 +252,12 @@ class MinecraftChunkAnalyzer:
         if len(data_info["files"]) > 0:
             self.console.log(
                 f"Successfully loaded {len(data_info['files'])} region files with total size of {data_info['total_size_mb']} mb")
-            self.world_selection_panel.add_copy(self.dimension_panel)
+            self.world_selection_panel.add_copy(self.dimension_panel, box_command=
+            self.dimension_selection_processing)  # добавляем панель измерения
+
         else:
             self.console.log(
-                f"Unable to find any .mca files which is strange. Trying to find in {self.full_world_path}")
+                f"Unable to find any .mca files which is strange. Trying to find in {self.full_world_path}", "error")
 
     def setup_info_frame(self):
         info_frame = self.info_frame
