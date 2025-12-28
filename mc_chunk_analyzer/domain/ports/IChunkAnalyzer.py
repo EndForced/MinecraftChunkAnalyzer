@@ -2,7 +2,6 @@ import numpy as np
 from ..models.Chunk import Chunk, RawChunk, ThreeDimCord, BlockID
 from ..models.Region import RawRegion
 from abc import ABC, abstractmethod
-from typing import Dict
 from ..models.Region import Region
 
 class IChunkParser(ABC):
@@ -14,12 +13,8 @@ class IChunkParser(ABC):
         """Превращение nbt в набор блоков/энтити"""
 
 class IChunkAnalyzer(ABC):
-    def __init__(self, chunk: Chunk):
-        self.chunk = chunk
-        """Класс для анализа чанка"""
-
     @abstractmethod
-    def is_a_block(self, block: BlockID) -> bool:
+    def look_for_block(self, block: BlockID) -> bool:
         """Быстрое определение есть ли такой блок"""
 
     # @abstractmethod
@@ -40,7 +35,7 @@ class IChunkAnalyzer(ABC):
         """Поиск блоков в чанке"""
 
     @abstractmethod
-    def find_in_area(self, p1: ThreeDimCord, p2: ThreeDimCord, bid:BlockID):
+    def find_in_area(self, p1: ThreeDimCord, p2: ThreeDimCord, bid:BlockID) -> List[ThreeDimCord]:
         """Поиск блоков в области"""
 
 class IMcaParser(ABC):
