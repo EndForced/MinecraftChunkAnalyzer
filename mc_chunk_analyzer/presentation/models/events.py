@@ -5,6 +5,7 @@ from typing import Dict, Type
 
 #event registration
 
+
 class Event(Enum):
     PATH_CHANGED = "path_changed"
     WORLD_SELECTED = "world_selected"
@@ -16,6 +17,7 @@ class PathChanged:
 @dataclass(frozen=True)
 class WorldSelected:
     path: Path
+    dim: str
 
 EVENT_PAYLOAD: Dict[Event, Type] = {
     Event.PATH_CHANGED: PathChanged,

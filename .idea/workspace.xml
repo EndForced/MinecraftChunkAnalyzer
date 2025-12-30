@@ -5,20 +5,14 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="af5cc353-8770-49cb-90c2-82c448cb93b0" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/mc_chunk_analyzer/presentation/Widgets.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/mc_chunk_analyzer/presentation/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/mc_chunk_analyzer/presentation/interfaces/INotebook.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/mc_chunk_analyzer/presentation/interfaces/IWidgets.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/mc_chunk_analyzer/presentation/interfaces/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/mc_chunk_analyzer/ui testing.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/BedrockPatternFinder.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/BedrockPatternFinder.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/UI/UI.py" beforeDir="false" afterPath="$PROJECT_DIR$/UI/UI.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/mc_chunk_analyzer/benchmark_mca_unpack.py" beforeDir="false" afterPath="$PROJECT_DIR$/mc_chunk_analyzer/benchmark_mca_unpack.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/mc_chunk_analyzer/domain/ports/IChunkAnalyzer.py" beforeDir="false" afterPath="$PROJECT_DIR$/mc_chunk_analyzer/domain/ports/IChunkAnalyzer.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/mc_chunk_analyzer/domain/services/ChunkAnalyzer.py" beforeDir="false" afterPath="$PROJECT_DIR$/mc_chunk_analyzer/domain/services/ChunkAnalyzer.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/mc_chunk_analyzer/profile_heavy.prof" beforeDir="false" afterPath="$PROJECT_DIR$/mc_chunk_analyzer/profile_heavy.prof" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/mc_chunk_analyzer/testing.py" beforeDir="false" afterPath="$PROJECT_DIR$/mc_chunk_analyzer/testing.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/mc_chunk_analyzer/testing1.py" beforeDir="false" afterPath="$PROJECT_DIR$/mc_chunk_analyzer/testing1.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mc_chunk_analyzer/infrastructure/fs/services.py" beforeDir="false" afterPath="$PROJECT_DIR$/mc_chunk_analyzer/infrastructure/fs/services.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mc_chunk_analyzer/presentation/Widgets.py" beforeDir="false" afterPath="$PROJECT_DIR$/mc_chunk_analyzer/presentation/Widgets.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mc_chunk_analyzer/presentation/models/events.py" beforeDir="false" afterPath="$PROJECT_DIR$/mc_chunk_analyzer/presentation/models/events.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mc_chunk_analyzer/presentation/tabs/info.py" beforeDir="false" afterPath="$PROJECT_DIR$/mc_chunk_analyzer/presentation/tabs/info.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mc_chunk_analyzer/presentation/utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/mc_chunk_analyzer/presentation/utils.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -51,7 +45,6 @@
   &quot;associatedIndex&quot;: 5
 }</component>
   <component name="ProjectId" id="34tiEGUjL8PwFqIjoHpmZ4zvaTR" />
-  <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
@@ -71,7 +64,10 @@
     &quot;Python.ui testing (1).executor&quot;: &quot;Run&quot;,
     &quot;Python.ui testing.executor&quot;: &quot;Run&quot;,
     &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
     &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
     &quot;last_opened_file_path&quot;: &quot;C:/Users/DNS/PycharmProjects/BedrockPatternFinder&quot;
   }
 }</component>
@@ -199,7 +195,7 @@
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-python-sdk-d7ad00fb9fc3-c546a90a8094-com.jetbrains.pycharm.community.sharedIndexes.bundled-PC-242.23726.102" />
+        <option value="bundled-python-sdk-4e2b1448bda8-9a97661f3031-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-252.27397.106" />
       </set>
     </attachedChunks>
   </component>

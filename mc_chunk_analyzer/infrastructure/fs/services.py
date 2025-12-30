@@ -18,13 +18,23 @@ class PathInfo:
 
     @property
     def _bobby(self):
-        if not self._bobby_enabled: return []
-        res = {}
-        for p in os.listdir(Path(self.path,".bobby")):
-            res[p+"(server)"] = []
-            for subp in os.listdir(Path(self.path,".bobby",p)):
-                res[p+"(server)"].append(subp)
-        return res
+        if not self._bobby_enabled:
+            return {}
+        bobby_dir = Path(self.path, ".bobby")
+        if not bobby_dir.exists() or not bobby_dir.is_dir():
+            return {}
+        result = {}
+        for server in bobby_dir.iterdir():
+            if not server.is_dir():
+                continue
+            server_key = f"{server.name}(server)"
+            worlds = {
+                world.name: world
+                for world in server.iterdir()
+                if world.is_dir()
+            }
+            result[server_key] = worlds
+        return result
 
     @property
     def _saves(self):

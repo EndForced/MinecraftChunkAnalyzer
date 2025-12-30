@@ -9,7 +9,7 @@ class EventBus:
     def subscribe(self, event: Event, handler):
         self._handlers[event].append(handler)
 
-    def emit(self, event: Event, payload: dataclass):
+    def emit(self, event: Event, payload):
         expected = EVENT_PAYLOAD.get(event)
 
         if expected is None:

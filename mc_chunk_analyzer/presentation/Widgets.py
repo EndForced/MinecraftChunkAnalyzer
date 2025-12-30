@@ -6,7 +6,7 @@ from datetime import datetime
 import os
 from pathlib import Path
 from .utils import EventBus
-from .models.events import Event, PathChanged
+from .models.events import Event, PathChanged, WorldSelected
 from ..infrastructure.fs.services import PathInfo
 from typing import List
 
@@ -14,10 +14,9 @@ class ConsoleWidget(ttk.Labelframe, IConsoleWidget):
     def __init__(self, parent, title="Info", max_lines=15, **kwargs):
         super().__init__(parent, text=title, **kwargs)
         self.height = 400
-        self.width = 200
+        self.width = 600
         self.text_widget = None
         self.max_lines = max_lines
-        self.size = (400,200)
         self.setup_ui()
 
 
@@ -25,7 +24,7 @@ class ConsoleWidget(ttk.Labelframe, IConsoleWidget):
         self.text_widget = tk.Text(
             self,
             height=80,
-            width=60,
+            width=160,
             wrap=tk.WORD,
             bg='#1E1E1E',
             font=('Consolas', 9),
@@ -119,15 +118,21 @@ class DimensionSelector(ttk.Frame, IDimensionSelector):
         self._combos: List[ttk.Combobox] = []
         self._setup_ui()
         self._combos[0].config(state = "readonly")
-        self._combos[0].config(values = list((*self._path_info.get_data.worlds.keys(),*self._path_info.get_data.bobby_words.keys())))
+
+        data = self._path_info.get_data
+        values = (
+                list(data.worlds)
+                + list(data.bobby_words.keys())
+        )
+        self._combos[0].config(values=values)
 
     def _on_select(self, id_combo):
         if id_combo == 0:
             if len(self._combos) == 3:
                 self._combos[2].destroy()
             self._combos = self._combos[:1]
-
             self._add_combo()
+
             if self._combos[0].get().endswith("(server)"):
                 self._combos[1].config(values = list(self._path_info.get_data.bobby_words[self._combos[0].get()]))
                 self._combos[1].set("Select bobby subworld!")
@@ -135,6 +140,7 @@ class DimensionSelector(ttk.Frame, IDimensionSelector):
             else:
                 self._combos[1].config(values = self._dims)
                 self._combos[1].set("Select dimension!")
+                self._bind(self._combos[1],lambda x: self._on_select(1))
             self._combos[1].grid(row = 0, column = 1)
 
         elif id_combo == 1:
@@ -142,17 +148,32 @@ class DimensionSelector(ttk.Frame, IDimensionSelector):
                 self._add_combo()
                 self._combos[2].set("Select dimension!")
                 self._combos[2].config(values = self._dims)
+                self._combos[2].grid(row=0, column=2, padx=50)
+                self._bind(self._combos[2], lambda x: self._on_select(2))
             else:
-                pass
-                #event bus emitting
-            self._combos[2].grid(row=0, column=2,padx = 50)
+                path = self._get_selected_path()
+                self._bus.emit(Event.WORLD_SELECTED, WorldSelected(path, self._combos[-1].get()))
+
+        elif id_combo == 2:
+            path = self._get_selected_path()
+            self._bus.emit(Event.WORLD_SELECTED, WorldSelected(path, self._combos[-1].get()))
+
+
+
+    def _get_selected_path(self) -> Path:
+        data = self._path_info.get_data
+        selected = self._combos[0].get()
+        if selected in data.bobby_words.keys():
+            return Path(data.bobby_words[selected][self._combos[1].get()])
+        else:
+            return Path(data.worlds[selected])
 
     def _add_combo(self):
         combo = ttk.Combobox(self, state = "readonly")
         self._combos.append(combo)
 
     @staticmethod
-    def _bind(combo: ttk.Combobox, func: callable):
+    def _bind(combo: ttk.Combobox, func):
         combo.bind("<<ComboboxSelected>>", func)
 
     def _setup_ui(self):
