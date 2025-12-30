@@ -41,3 +41,19 @@ class PathInfo:
     @property
     def get_data(self) -> WorldTree:
         return WorldTree(worlds=self._saves, bobby_words=self._bobby)
+
+class WorldInfo:
+    def __init__(self, path: Path):
+        self.path = path
+
+    @property
+    def size_mb(self) -> int:
+       return os.path.getsize(self.path)
+
+    @property
+    def name(self) -> str:
+        return self.path.parts[-1]
+
+    def path_to_dim(self, dim: str):
+        if dim not in ["over", "end", "nether"]:
+            raise ValueError(f"Can't get path to dim {dim}") from ValueError

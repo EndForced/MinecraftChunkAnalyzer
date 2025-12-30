@@ -8,14 +8,18 @@ from pathlib import Path
 from .utils import EventBus
 from .models.events import Event, PathChanged
 from ..infrastructure.fs.services import PathInfo
-from typing import List, Optional
+from typing import List
 
 class ConsoleWidget(ttk.Labelframe, IConsoleWidget):
     def __init__(self, parent, title="Info", max_lines=15, **kwargs):
         super().__init__(parent, text=title, **kwargs)
+        self.height = 400
+        self.width = 200
         self.text_widget = None
         self.max_lines = max_lines
+        self.size = (400,200)
         self.setup_ui()
+
 
     def setup_ui(self):
         self.text_widget = tk.Text(
@@ -33,7 +37,7 @@ class ConsoleWidget(ttk.Labelframe, IConsoleWidget):
         self.text_widget.configure(yscrollcommand=scrollbar.set)
 
         self.text_widget.grid(row=0, column=0, sticky='nsew', padx=5, pady=5)
-        scrollbar.grid(row=0, column=1, sticky='ns', pady=5)
+        scrollbar.grid(row=0, column=1, sticky='n', pady=5)
 
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=1)
