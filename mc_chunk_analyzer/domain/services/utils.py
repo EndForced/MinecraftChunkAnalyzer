@@ -32,18 +32,12 @@ class ChunkManager:
         return [RawRegion(path, self._dimension) for path in region_paths]
 
     def _get_required_region_coords(self, corners: Corners) -> Set[tuple[int, int]]:
-        """
-        Computes which region coords are needed for given corners.
-        """
-        xmin = corners.xmin
-        xmax = corners.xmax
-        zmin = corners.ymin
-        zmax = corners.ymax
-
-        rx_min = xmin // 32
-        rx_max = xmax // 32
-        rz_min = zmin // 32
-        rz_max = zmax // 32
+        # Используем .zmin / .zmax если они есть,
+        # либо четко осознаем, что y в Corners — это на самом деле Z на карте
+        rx_min = corners.xmin // 32
+        rx_max = corners.xmax // 32
+        rz_min = corners.ymin // 32  # <-- Проверь имя поля в классе Corners!
+        rz_max = corners.ymax // 32
 
         return {
             (rx, rz)
@@ -87,9 +81,43 @@ class ChunkManager:
         return result
 
 
+import time
+from collections import defaultdict
+
+class Profiler:
+    def __init__(self):
+        self.stats = defaultdict(float)
+        self.counts = defaultdict(int)
+
+    def __call__(self, name):
+        """Используется как контекстный менеджер: with prof('name'):"""
+        class Timer:
+            def __init__(self, outer, name):
+                self.outer = outer
+                self.name = name
+            def __enter__(self):
+                self.start = time.perf_counter()
+            def __exit__(self, *args):
+                dt = time.perf_counter() - self.start
+                self.outer.stats[self.name] += dt
+                self.outer.counts[self.name] += 1
+        return Timer(self, name)
+
+    def report(self):
+        print(f"\n{'='*20} PERFORMANCE REPORT {'='*20}")
+        print(f"{'Step':<20} | {'Total (s)':<10} | {'Avg (ms)':<10} | {'Calls':<8}")
+        print("-" * 55)
+        for name in sorted(self.stats, key=self.stats.get, reverse=True):
+            total = self.stats[name]
+            count = self.counts[name]
+            avg = (total / count) * 1000
+            print(f"{name:<20} | {total:<10.4f} | {avg:<10.2f} | {count:<8}")
+        print("=" * 55)
+
+
+
 if __name__ == "__main__":
     c = Corners(-10,10,-10,10)
-    print(ChunkManager._get_required_region_coords(None,c))
 
 
 

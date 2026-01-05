@@ -66,36 +66,33 @@ class McaParser(IMcaParser):
         )
 
 # ---------- Kinda fast nbt reading tbh ----------
+import struct
+import numpy as np
+from typing import List, Union, Dict
+
+
 class NBTTagReader(INBTTagReader):
     def __init__(self, data: bytes):
         super().__init__()
+        # Инициализация кэша и вспомогательных структур
         self._tag_spec_cache = [get_tag_spec_by_id(i) for i in range(13)]
-        self._tag_length_cache = [self._tag_spec_cache[i].tag_id for i in range(13)]
-        self.current_byte = 0
         self.data = data
         self.mv = memoryview(self.data)
-        self._read_func = {
-            7: lambda: self._read_with_length_field(self._tag_spec_cache[7]),
-            8: lambda: self._read_with_length_field(self._tag_spec_cache[8]),
-            11: lambda: self._read_with_length_field(self._tag_spec_cache[11]),
-            12: lambda: self._read_with_length_field(self._tag_spec_cache[12])
-        }
-        self._fixed_read_map = {
-            1: self._read_int8,
-            2: self._read_int16,
-            3: self._read_int32,
-            4: self._read_int64,
-            5: self._read_float,
-            6: self._read_double,
-        }
+        self.current_byte = 0
+        self._name_cache = {}
+        self._return_bytes_for_arrays = True
 
+        # Карта размеров для простых типов
+        self._size_map = {1: 1, 2: 2, 3: 4, 4: 8, 5: 4, 6: 8}
+
+        # Вставьте это в __init__ вашего класса
         self._cache_skip_functions = {
             1: self._skip_byte,
             2: self._skip_int16,
             3: self._skip_int32,
             4: self._skip_int64,
-            5: self._skip_int32,
-            6: self._skip_int64,
+            5: self._skip_int32,  # Float
+            6: self._skip_int64,  # Double
             7: self._skip_bytearray,
             8: self._skip_string,
             9: self._skip_list,
@@ -104,46 +101,146 @@ class NBTTagReader(INBTTagReader):
             12: self._skip_long_array
         }
 
-        self._name_cache = {}
-        self._return_bytes_for_arrays = True
+    def _read_uint8(self) -> int:
+        v = self.mv[self.current_byte]
+        self.current_byte += 1
+        return v
 
-        self._size_map = {
-            1: 1,  # Byte
-            2: 2,  # Short
-            3: 4,  # Int
-            4: 8,  # Long
-            5: 4,  # Float
-            6: 8,  # Double
-        }
+    def _read_int16(self) -> int:
+        v = int.from_bytes(self.mv[self.current_byte:self.current_byte + 2], 'big', signed=True)
+        self.current_byte += 2
+        return v
+
+    def _read_int32(self) -> int:
+        v = int.from_bytes(self.mv[self.current_byte:self.current_byte + 4], 'big', signed=True)
+        self.current_byte += 4
+        return v
+
+    def _get_next_name(self) -> str:
+        """Читает длину и само имя тега, используя глобальный указатель."""
+        name_len = (self.data[self.current_byte] << 8) | self.data[self.current_byte + 1]
+        self.current_byte += 2
+
+        if name_len == 0:
+            return ""
+
+        name_bytes = self.data[self.current_byte: self.current_byte + name_len]
+        self.current_byte += name_len
+
+        # Кэширование имен для скорости
+        if name_bytes in self._name_cache:
+            return self._name_cache[name_bytes]
+
+        name = name_bytes.decode('utf-8', errors='replace')
+        if name_len <= 32:
+            self._name_cache[name_bytes] = name
+        return name
+
+    def read(self) -> NBTTag:
+        """Точка входа для чтения ПОЛНОГО тега (ID + Имя + Данные)."""
+        tag_id = self._read_uint8()
+        if tag_id == 0:
+            return NBTTag(name="END", value=None)
+
+        name = self._get_next_name()
+        payload = self._parse_payload(tag_id)
+        return NBTTag(name=name, value=payload)
+
+    def _parse_payload(self, tag_id: int):
+        """Центральный метод для чтения данных любого типа по его ID."""
+        if tag_id == 1:  # Byte
+            v = self.data[self.current_byte]
+            self.current_byte += 1
+            return v
+        elif tag_id == 2:  # Short
+            v = int.from_bytes(self.data[self.current_byte:self.current_byte + 2], 'big', signed=True)
+            self.current_byte += 2
+            return v
+        elif tag_id == 3:  # Int
+            v = int.from_bytes(self.data[self.current_byte:self.current_byte + 4], 'big', signed=True)
+            self.current_byte += 4
+            return v
+        elif tag_id == 4:  # Long
+            v = int.from_bytes(self.data[self.current_byte:self.current_byte + 8], 'big', signed=True)
+            self.current_byte += 8
+            return v
+        elif tag_id == 5:  # Float
+            v = struct.unpack_from(">f", self.data, self.current_byte)[0]
+            self.current_byte += 4
+            return v
+        elif tag_id == 6:  # Double
+            v = struct.unpack_from(">d", self.data, self.current_byte)[0]
+            self.current_byte += 8
+            return v
+        elif tag_id == 7:  # Byte Array
+            size = self._read_int32()
+            res = self.data[self.current_byte: self.current_byte + size]
+            self.current_byte += size
+            return res if self._return_bytes_for_arrays else list(res)
+        elif tag_id == 8:  # String
+            s_len = (self.data[self.current_byte] << 8) | self.data[self.current_byte + 1]
+            self.current_byte += 2
+            res = self.data[self.current_byte: self.current_byte + s_len].decode('utf-8', errors='replace')
+            self.current_byte += s_len
+            return res
+        elif tag_id == 9:  # List
+            return self._read_list()
+        elif tag_id == 10:  # Compound
+            return self._read_compound()
+        elif tag_id == 11:  # Int Array
+            size = self._read_int32()
+            n_bytes = size * 4
+            res = np.frombuffer(self.data[self.current_byte: self.current_byte + n_bytes], dtype='>i4').tolist()
+            self.current_byte += n_bytes
+            return res
+        elif tag_id == 12:  # Long Array
+            size = self._read_int32()
+            n_bytes = size * 8
+            res = np.frombuffer(self.data[self.current_byte: self.current_byte + n_bytes], dtype='>i8').tolist()
+            self.current_byte += n_bytes
+            return res
+        return None
+
+    def _read_compound(self) -> Dict:
+        """Читает содержимое компаунда (пары тегов до TAG_End)."""
+        res = {}
+        while True:
+            tag_id = self._read_uint8()
+            if tag_id == 0:  # TAG_End
+                break
+            name = self._get_next_name()
+            res[name] = self._parse_payload(tag_id)
+        return res
+
+    def _read_list(self) -> List:
+        """Читает список элементов одного типа."""
+        list_type = self._read_uint8()
+        size = self._read_int32()
+        if size <= 0:
+            return []
+
+        # Оптимизация для массового чтения примитивов
+        if list_type == 3:  # Ints
+            n = size * 4
+            res = np.frombuffer(self.data[self.current_byte:self.current_byte + n], dtype='>i4').tolist()
+            self.current_byte += n
+            return res
+        elif list_type == 4:  # Longs
+            n = size * 8
+            res = np.frombuffer(self.data[self.current_byte:self.current_byte + n], dtype='>i8').tolist()
+            self.current_byte += n
+            return res
+
+        return [self._parse_payload(list_type) for _ in range(size)]
 
     def update_data(self, data: bytes):
         self.current_byte = 0
         self.mv = memoryview(data)
         self.data = data
 
-    def _read_uint8(self) -> int:
-        v = self.mv[self.current_byte]
-        self.current_byte += 1
-        return v
-
     def _read_int8(self) -> int:
         v = int.from_bytes(self.mv[self.current_byte:self.current_byte+1], 'big', signed=True)
         self.current_byte += 1
-        return v
-
-    def _read_int16(self) -> int:
-        v = int.from_bytes(self.mv[self.current_byte:self.current_byte+2], 'big', signed=True)
-        self.current_byte += 2
-        return v
-
-    def _read_uint16(self) -> int:
-        v = int.from_bytes(self.mv[self.current_byte:self.current_byte+2], 'big', signed=False)
-        self.current_byte += 2
-        return v
-
-    def _read_int32(self) -> int:
-        v = int.from_bytes(self.mv[self.current_byte:self.current_byte+4], 'big', signed=True)
-        self.current_byte += 4
         return v
 
     def _read_int64(self) -> int:
@@ -184,38 +281,10 @@ class NBTTagReader(INBTTagReader):
         self.current_byte = start
         return name
 
-    def _get_next_name(self) -> str:
-        pos = self.current_byte
-        data = self.data
-        name_len = (data[pos] << 8) | data[pos + 1]
-        pos += 2
-        if name_len == 0:
-            self.current_byte = pos
-            return ""
-        name_bytes = data[pos:pos + name_len]
-        pos += name_len
-
-        self.current_byte = pos
-        try:
-            return name_bytes.decode('ascii')
-        except UnicodeDecodeError:
-            return name_bytes.decode('utf-8')
-
-    def read(self) -> NBTTag:
-        tag = self.get_next_type(True).tag_id
-        name = self._get_next_name()
-        payload = None
-
-        if tag in [1,2,3,4,5,6]:
-            payload = self._read_base(self._tag_spec_cache[tag])
-        elif tag in [7, 8, 11, 12]:
-            payload = self._read_with_length_field(self._tag_spec_cache[tag])
-        elif tag == 9:  # list
-            payload = self._read_list()
-        elif tag == 10:
-            payload = self._read_compound()
-
-        return NBTTag(name=name, value=payload)
+    def _read_uint16(self) -> int:
+        v = int.from_bytes(self.mv[self.current_byte:self.current_byte + 2], 'big', signed=False)
+        self.current_byte += 2
+        return v
 
     def parse_through_tree(self, route: List) -> Union[NBTTag, None]:
         self.get_next_type(True)
@@ -236,161 +305,6 @@ class NBTTagReader(INBTTagReader):
             elif name == route[0]:
                 return self.read()
 
-
-    def _read_list(self) -> List:
-        tags_type = self._read_uint8()
-        size = self._read_int32()
-        if size == 0:
-            return []
-
-        if tags_type in [1, 2, 3, 4, 5, 6]:
-            read_func = self._read_base
-        elif tags_type in [7, 8, 11, 12]:
-            read_func = self._read_func[tags_type]
-        elif tags_type == 10:
-            read_func = self._read_compound
-        elif tags_type == 9:
-            read_func = self._read_list
-        else:
-            raise ValueError(f"Strange tag id bro {tags_type}")
-
-        if tags_type in (3, 4):
-            if tags_type == 3:
-                nbytes = 4 * size
-                arr = np.frombuffer(self.mv[self.current_byte:self.current_byte + nbytes], dtype='>i4')
-                self.current_byte += nbytes
-                return arr.tolist()
-            else:
-                nbytes = 8 * size
-                arr = np.frombuffer(self.mv[self.current_byte:self.current_byte + nbytes], dtype='>i8')
-                self.current_byte += nbytes
-                return arr.tolist()
-
-        return [read_func() for _ in range(size)]
-
-    def _read_compound(self): #I hate my life
-        payload_out = {}
-        data = self.data
-        pos = self.current_byte
-
-        while True:
-            tag_id = data[pos]
-            pos += 1
-
-            if tag_id == 0:  # TAG_End
-                self.current_byte = pos
-                return payload_out
-
-            name_len = (data[pos] << 8) | data[pos + 1]
-            pos += 2
-
-            if name_len:
-                name_bytes = data[pos:pos + name_len]
-                pos += name_len
-
-                name = self._name_cache.get(name_bytes)
-                if name is None:
-                    try:
-                        name = name_bytes.decode('ascii')
-                    except UnicodeDecodeError:
-                        name = name_bytes.decode('utf-8')
-
-                    if name_len <= 32:
-                        self._name_cache[name_bytes] = name
-            else:
-                name = ""
-
-            if tag_id == 1:  # Byte
-                payload = data[pos]
-                pos += 1
-            elif tag_id == 2:  # Short
-                payload = (data[pos] << 8) | data[pos + 1]
-                pos += 2
-            elif tag_id == 3:  # Int
-                payload = ((data[pos] << 24) | (data[pos + 1] << 16) |
-                           (data[pos + 2] << 8) | data[pos + 3])
-                pos += 4
-            elif tag_id == 4:  # Long
-                payload = ((data[pos] << 56) | (data[pos + 1] << 48) |
-                           (data[pos + 2] << 40) | (data[pos + 3] << 32) |
-                           (data[pos + 4] << 24) | (data[pos + 5] << 16) |
-                           (data[pos + 6] << 8) | data[pos + 7])
-                pos += 8
-            elif tag_id == 5:  # Float
-                payload = struct.unpack_from(">f", data, pos)[0]
-                pos += 4
-            elif tag_id == 6:  # Double
-                payload = struct.unpack_from(">d", data, pos)[0]
-                pos += 8
-
-            elif tag_id == 7:  # Byte array
-                size = ((data[pos] << 24) | (data[pos + 1] << 16) |
-                        (data[pos + 2] << 8) | data[pos + 3])
-                pos += 4
-                if size:
-                    if self._return_bytes_for_arrays:
-                        payload = data[pos:pos + size]
-                    else:
-                        payload = list(data[pos:pos + size])
-                    pos += size
-                else:
-                    payload = [] if not self._return_bytes_for_arrays else b''
-
-            elif tag_id == 8:  # String
-                str_len = (data[pos] << 8) | data[pos + 1]
-                pos += 2
-                if str_len:
-                    str_bytes = data[pos:pos + str_len]
-                    pos += str_len
-                    try:
-                        payload = str_bytes.decode('ascii')
-                    except UnicodeDecodeError:
-                        payload = str_bytes.decode('utf-8')
-                else:
-                    payload = ""
-
-            elif tag_id == 9:  # List
-                list_result, new_pos = self._read_list_at_pos(data, pos)
-                payload = list_result
-                pos = new_pos
-
-            elif tag_id == 10:  # Compound (рекурсия)
-                self.current_byte = pos
-                payload = self._read_compound()
-                pos = self.current_byte
-
-            elif tag_id == 11:  # Int array
-                size = ((data[pos] << 24) | (data[pos + 1] << 16) |
-                        (data[pos + 2] << 8) | data[pos + 3])
-                pos += 4
-                if size:
-                    arr = memoryview(data)[pos:pos + size * 4]
-                    if size > 16:
-                        payload = np.frombuffer(arr, dtype='>i4').tolist()
-                    else:
-                        payload = list(struct.unpack_from(f">{size}i", data, pos))
-                    pos += size * 4
-                else:
-                    payload = []
-
-            elif tag_id == 12:  # Long array
-                size = ((data[pos] << 24) | (data[pos + 1] << 16) |
-                        (data[pos + 2] << 8) | data[pos + 3])
-                pos += 4
-                if size:
-                    arr = memoryview(data)[pos:pos + size * 8]
-                    if size > 8:
-                        payload = np.frombuffer(arr, dtype='>i8').tolist()
-                    else:
-                        payload = list(struct.unpack_from(f">{size}q", data, pos))
-                    pos += size * 8
-                else:
-                    payload = []
-
-            payload_out[name] = payload
-
-        self.current_byte = pos
-        return payload_out
 
     def _read_list_at_pos(self, data: bytes, start_pos: int):
         pos = start_pos
@@ -451,6 +365,13 @@ class NBTTagReader(INBTTagReader):
                 result.append(self._read_compound())
                 pos = self.current_byte
                 self.current_byte = old_pos
+
+        elif list_type == 9:  # Вложенные списки
+            for _ in range(size):
+                # Рекурсивно вызываем этот же метод для элементов списка
+                list_result, new_pos = self._read_list_at_pos(data, pos)
+                result.append(list_result)
+                pos = new_pos
 
         else:
             for _ in range(size):

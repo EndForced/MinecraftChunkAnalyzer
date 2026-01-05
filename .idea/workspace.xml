@@ -5,18 +5,12 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="af5cc353-8770-49cb-90c2-82c448cb93b0" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/mc_chunk_analyzer/domain/services/WorldHandler.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/mc_chunk_analyzer/domain/services/utils.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/r.-6.-6.mca" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/BedrockPatternFinder.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/BedrockPatternFinder.iml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/mc_chunk_analyzer/domain/models/Chunk.py" beforeDir="false" afterPath="$PROJECT_DIR$/mc_chunk_analyzer/domain/models/Chunk.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/mc_chunk_analyzer/domain/models/Region.py" beforeDir="false" afterPath="$PROJECT_DIR$/mc_chunk_analyzer/domain/models/Region.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/mc_chunk_analyzer/domain/ports/IChunkAnalyzer.py" beforeDir="false" afterPath="$PROJECT_DIR$/mc_chunk_analyzer/domain/ports/IChunkAnalyzer.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/mc_chunk_analyzer/domain/services/ChunkAnalyzer.py" beforeDir="false" afterPath="$PROJECT_DIR$/mc_chunk_analyzer/domain/services/ChunkAnalyzer.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/mc_chunk_analyzer/infrastructure/fs/services.py" beforeDir="false" afterPath="$PROJECT_DIR$/mc_chunk_analyzer/infrastructure/fs/services.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/mc_chunk_analyzer/ui testing.py" beforeDir="false" afterPath="$PROJECT_DIR$/mc_chunk_analyzer/ui testing.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mc_chunk_analyzer/domain/services/WorldHandler.py" beforeDir="false" afterPath="$PROJECT_DIR$/mc_chunk_analyzer/domain/services/WorldHandler.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mc_chunk_analyzer/domain/services/utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/mc_chunk_analyzer/domain/services/utils.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
