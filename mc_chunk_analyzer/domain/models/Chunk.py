@@ -105,7 +105,28 @@ class Entity:
     cord: np.ndarray
     hp: Optional[np.ndarray] = None
 
+class Corners:
+    def __init__(self,xmin, xmax, ymin, ymax):
+        self._xmin = xmin
+        self._xmax = xmax
+        self._ymin = ymin
+        self._ymax = ymax
 
+    @property
+    def xmin(self):
+        return self._xmin
+
+    @property
+    def xmax(self):
+        return self._xmax
+
+    @property
+    def ymin(self):
+        return self._ymin
+
+    @property
+    def ymax(self):
+        return self._ymax
 
 
 

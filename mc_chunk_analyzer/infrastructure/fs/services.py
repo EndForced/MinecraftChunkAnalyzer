@@ -3,6 +3,17 @@ from typing import Dict, List
 from .models import WorldTree
 import os
 
+def search_for_files(files: List[str], root: Path) -> List[Path]:
+    targets = set(files)
+    found: List[Path] = []
+
+    for path in root.rglob("*"):
+        if path.is_file() and path.name in targets:
+            found.append(path)
+
+    return found
+
+
 class PathInfo:
     def __init__(self, path: Path):
         self.path = path
@@ -67,3 +78,4 @@ class WorldInfo:
     def path_to_dim(self, dim: str):
         if dim not in ["over", "end", "nether"]:
             raise ValueError(f"Can't get path to dim {dim}") from ValueError
+

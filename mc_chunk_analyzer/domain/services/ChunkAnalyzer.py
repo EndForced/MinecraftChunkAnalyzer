@@ -12,6 +12,7 @@ import numpy as np
 import gzip
 import zlib
 import struct
+import math
 from numba import jit
 
 
@@ -59,9 +60,9 @@ class McaParser(IMcaParser):
 
         return Region(
             readable=True,
-            cord=cord,
             raw_chunks=raw_chunks,
-            dimension=region.dimension
+            dimension=region.dimension,
+            name = region.path.parts[-1]
         )
 
 # ---------- Kinda fast nbt reading tbh ----------
@@ -114,6 +115,11 @@ class NBTTagReader(INBTTagReader):
             5: 4,  # Float
             6: 8,  # Double
         }
+
+    def update_data(self, data: bytes):
+        self.current_byte = 0
+        self.mv = memoryview(data)
+        self.data = data
 
     def _read_uint8(self) -> int:
         v = self.mv[self.current_byte]
@@ -568,7 +574,10 @@ class ChunkAnalyzer(IChunkAnalyzer):
         self.section_data = []
 
         for section in self.sections:
-            y_level = section.get('Y', -100)
+            y_raw = section.get('Y', -100)
+            y_level = y_raw - 256 if y_raw > 127 else y_raw
+            #fuck it
+
             block_states = section.get('block_states', {})
             palette = block_states.get('palette', [])
             block_data = block_states.get('data', [])
@@ -584,15 +593,25 @@ class ChunkAnalyzer(IChunkAnalyzer):
                 'is_single_block': len(palette) == 1
             })
 
+
     def look_for_block(self, block_name):
         return any(
             block_name in section['palette']
             for section in self.section_data
         )
 
+    import math
+
     def get_block(self, x, y, z):
-        section_y = y // 16
-        local_y = y % 16
+        if not (0 <= x < 16 and 0 <= z < 16):
+            return "minecraft:air"
+
+        section_y = math.floor(y / 16)
+        local_y = y - section_y * 16
+
+        if not (0 <= local_y < 16):
+            return "minecraft:air"
+
         block_index = local_y * 256 + z * 16 + x
 
         for section in self.section_data:
@@ -605,14 +624,14 @@ class ChunkAnalyzer(IChunkAnalyzer):
                 if section['is_single_block']:
                     return palette[0]
 
-                if len(section['block_data']) > 0:
-                    block_id = extract_block_id_fast(
-                        section['block_data'],
-                        block_index,
-                        section['bits_per_block'],
-                        len(palette)
-                    )
-                    return palette[block_id] if block_id < len(palette) else "minecraft:air"
+                block_id = extract_block_id_fast(
+                    section['block_data'],
+                    block_index,
+                    section['bits_per_block'],
+                    len(palette)
+                )
+
+                return palette[block_id] if block_id < len(palette) else "minecraft:air"
 
         return "minecraft:air"
 
